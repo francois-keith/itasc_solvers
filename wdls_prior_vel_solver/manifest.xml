@@ -1,0 +1,15 @@
+<package>
+    <description brief="WDLS Priorities Velocity Solver">
+        This package contains the components of the WDLSPriorVelSolver package.
+	Part of the iTaSC-Skill framework, itasc_solvers.
+    </description>
+    <license>BSD,LGPL</license>
+    <url>http://www.orocos.org/itasc</url>
+    <author>Dominick Vanthienen</author>
+    <depend package="rtt" />
+    <depend package="eigen"/>
+    <depend package="orocos_kdl"/>
+    <depend package="ocl"/>
+    <depend package="itasc_core"/>
+</package>
+

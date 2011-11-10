@@ -1,0 +1,12 @@
+<stack>
+  <description brief="itasc_solvers">itasc_solvers</description>
+  <author>Maintained by Dominick Vanthienen</author>
+  <license>BSD,LGPL</license>  
+  <review status="unreviewed" notes=""/>
+  <url>http://orocos.org</url>
+  <depend stack="ros" />
+  <depend stack="itasc_core" />
+  <depend stack="rtt_ros_integration" />
+  <depend stack="orocos_kinematics_dynamics" />
+
+</stack>

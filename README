@@ -1,0 +1,22 @@
+itasc_solvers
+
+itasc_solvers is part of the iTaSC-Skill framework, 
+developed at the Mechanical Engineering department of K.U.Leuven, Leuven, Belgium.
+(c) K.U.Leuven 2011
+
+The following people contributed to this release: (alphabetical order)
+Herman   Bruyninckx
+Wilm     Decré
+Tinne    De Laet
+Joris    De Schutter
+Ruben    Smits
+Dominick Vanthienen
+
+Information on iTaSC can be found on/in:
+* http://orocos.org/itasc
+* J. De Schutter, T. De Laet, J. Rutgeerts, W. Decre, R. Smits,E. Aertbelien, K. Claes, and H. Bruyninckx.
+  Constraint-based task specification and estimation for sensor-based robot systems in the presence of geometric uncertainty.
+  The International Journal of Robotics Research, 26(5):433–455, 2007.
+* W. Decre, R. Smits, H. Bruyninckx, and J. De Schutter. 
+  Extending iTaSC to support inequality constraints and non-instantaneous task specification. 
+  In Proceedings of the 2009 IEEE International Conference on Robotics and Automation, pages 964–971, Kobe, Japan, 2009.
