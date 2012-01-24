@@ -97,7 +97,6 @@ bool WDLSPriorVelSolver::configureHook() {
 		this->provides()->addAttribute(externalName, priorities[i]->nc_priority);//"Number of constraint coordinates for the priority of the index."
 		//this->provides()->setValue( new Attribute<unsigned int>(externalName,priorities[i]->nc_priority) );
 	}
-	log(Info) << "[Configuring] nc_priority voor priority 1 = " << priorities[0]->nc_priority << endlog();
 	nq_local = nq;
 	Wvector.reserve(Wcapacity);
 	Lvector.reserve(Wcapacity);
