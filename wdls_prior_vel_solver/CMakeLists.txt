@@ -5,7 +5,7 @@ project(WDLSPriorVelSolver)
 set (ROS_ROOT $ENV{ROS_ROOT} )
 if (ROS_ROOT)
   include($ENV{ROS_ROOT}/core/rosbuild/rosbuild.cmake)
-  set(ROS_BUILD_TYPE Debug) #set type to Debug to get debug info compiled
+  set(ROS_BUILD_TYPE Release) #set type to Debug to get debug info compiled
   rosbuild_init()
   rosbuild_find_ros_package( rtt )
   set( RTT_HINTS HINTS ${rtt_PACKAGE_PATH}/../install )
