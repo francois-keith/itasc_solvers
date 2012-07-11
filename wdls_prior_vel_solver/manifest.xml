@@ -7,7 +7,7 @@
     <url>http://www.orocos.org/itasc</url>
     <author>Dominick Vanthienen</author>
     <depend package="rtt" />
-    <depend package="eigen"/>
+    <rosdep name="eigen"/>
     <depend package="orocos_kdl"/>
     <depend package="ocl"/>
     <depend package="itasc_core"/>
