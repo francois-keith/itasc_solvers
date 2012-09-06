@@ -46,7 +46,7 @@
 #include <rtt/Logger.hpp>
 
 #include <rtt/os/TimeService.hpp>
-
+#include <Eigen/LU>
 ORO_CREATE_COMPONENT( iTaSC::WDLSPriorVelSolver );
 
 namespace iTaSC {
@@ -65,7 +65,7 @@ WDLSPriorVelSolver::WDLSPriorVelSolver(const string& name) :
 	bound_max(5.75),
 	Seps(1e-9),
 	nc_priorities(std::vector<int>(1,0))
-{
+{	
 	this->addPort("nc_priorities",nc_priorities_port).doc("Port with vector of number of constraints per priority.");
 	this->addPort("lambda_port", lambda_port).doc("delete me");
 	this->addPort("S_port", S_port).doc("delete me");
@@ -244,7 +244,7 @@ RTT::os::TimeService::ticks time_begin = os::TimeService::Instance()->getTicks()
 			return false;
 		}
 		Lq = LqT.transpose();
-		Lq.computeInverse(&LqInv);//TODO this isn't realtime !!!
+		LqInv = Lq.inverse();//TODO this isn't realtime !!!
 		//check whether there is space left in the vectors
 		if(LinvVector.size()==Wcapacity)
 		{
@@ -283,7 +283,7 @@ RTT::os::TimeService::ticks time_begin = os::TimeService::Instance()->getTicks()
 			log(Debug) << "Calculating LqInv from Lq"<< endlog();
 #endif
 			//LqInv hasn't been calculated yet
-			Lvector[weightIndex].computeInverse(&LqInv);//TODO this isn't realtime !!!
+			LqInv = Lvector[weightIndex].inverse();//TODO this isn't realtime !!!
 		}
 	}
 #ifndef NDEBUG

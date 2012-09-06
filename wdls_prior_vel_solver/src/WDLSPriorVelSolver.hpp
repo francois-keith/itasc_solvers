@@ -41,6 +41,7 @@
 #ifndef _ITASC_WDLSVELOCITYSOLVER_HPP
 #define _ITASC_WDLSVELOCITYSOLVER_HPP
 
+
 #include <rtt/TaskContext.hpp>
 #include <algorithm>
 #include <itasc_core/Solver.hpp>
