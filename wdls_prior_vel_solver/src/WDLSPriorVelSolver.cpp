@@ -37,7 +37,6 @@
  *       POSSIBILITY OF SUCH DAMAGE.                                           *
  *                                                                             *
  *******************************************************************************/
-
 #include "WDLSPriorVelSolver.hpp"
 
 #include <ocl/Component.hpp>
@@ -56,7 +55,7 @@ using namespace KDL;
 using namespace RTT;
 
 WDLSPriorVelSolver::WDLSPriorVelSolver(const string& name) :
-	Solver(name),
+	Solver(name, 0),
 	nc_local(0),
 	nq_local(0),
 	priorityNo(1),
