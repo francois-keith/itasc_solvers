@@ -37,7 +37,6 @@
  *       POSSIBILITY OF SUCH DAMAGE.                                           *
  *                                                                             *
  *******************************************************************************/
-
 #include "WDLSPriorVelSolver.hpp"
 
 #include <ocl/Component.hpp>
@@ -46,7 +45,7 @@
 #include <rtt/Logger.hpp>
 
 #include <rtt/os/TimeService.hpp>
-
+#include <Eigen/LU>
 ORO_CREATE_COMPONENT( iTaSC::WDLSPriorVelSolver );
 
 namespace iTaSC {
@@ -56,7 +55,7 @@ using namespace KDL;
 using namespace RTT;
 
 WDLSPriorVelSolver::WDLSPriorVelSolver(const string& name) :
-	Solver(name),
+	Solver(name, 0),
 	nc_local(0),
 	nq_local(0),
 	priorityNo(1),
@@ -65,7 +64,7 @@ WDLSPriorVelSolver::WDLSPriorVelSolver(const string& name) :
 	bound_max(5.75),
 	Seps(1e-9),
 	nc_priorities(std::vector<int>(1,0))
-{
+{	
 	this->addPort("nc_priorities",nc_priorities_port).doc("Port with vector of number of constraints per priority.");
 	this->addPort("lambda_port", lambda_port).doc("delete me");
 	this->addPort("S_port", S_port).doc("delete me");
@@ -244,7 +243,7 @@ RTT::os::TimeService::ticks time_begin = os::TimeService::Instance()->getTicks()
 			return false;
 		}
 		Lq = LqT.transpose();
-		Lq.computeInverse(&LqInv);//TODO this isn't realtime !!!
+		LqInv = Lq.inverse();//TODO this isn't realtime !!!
 		//check whether there is space left in the vectors
 		if(LinvVector.size()==Wcapacity)
 		{
@@ -283,7 +282,7 @@ RTT::os::TimeService::ticks time_begin = os::TimeService::Instance()->getTicks()
 			log(Debug) << "Calculating LqInv from Lq"<< endlog();
 #endif
 			//LqInv hasn't been calculated yet
-			Lvector[weightIndex].computeInverse(&LqInv);//TODO this isn't realtime !!!
+			LqInv = Lvector[weightIndex].inverse();//TODO this isn't realtime !!!
 		}
 	}
 #ifndef NDEBUG
@@ -403,12 +402,12 @@ RTT::os::TimeService::ticks time_begin = os::TimeService::Instance()->getTicks()
 
 		//THE ACTUAL ALGORITHM
 		//projection of A on the null space of previous priorities
-		priorities[i]->A_p = (priorities[i]->A_priority*P).lazy();
+		(priorities[i]->A_p).noalias() = (priorities[i]->A_priority*P);
 		//calculation of weighted jacobian
-		priorities[i]->Ap_LqInv = (priorities[i]->A_p * LqInv).lazy();
-		priorities[i]->Ly_Ap_LqInv = (priorities[i]->Ly_priority * priorities[i]->Ap_LqInv).lazy();
+		(priorities[i]->Ap_LqInv).noalias() = (priorities[i]->A_p * LqInv);
+		(priorities[i]->Ly_Ap_LqInv).noalias() = (priorities[i]->Ly_priority * priorities[i]->Ap_LqInv);
 		//compensation for part of solution already met in lower priorities
-		priorities[i]->ydot_ct = (priorities[i]->A_priority*qdot).lazy();
+		(priorities[i]->ydot_ct).noalias() = (priorities[i]->A_priority*qdot);
 		priorities[i]->ydot_comp = priorities[i]->ydot_priority - priorities[i]->ydot_ct;
 
 		//SVD calculation of A_projected with weighting
@@ -427,7 +426,7 @@ RTT::os::TimeService::ticks time_begin = os::TimeService::Instance()->getTicks()
 		}
 
 		//LqInv*V
-		LqInv_V = (LqInv * V).lazy();
+		LqInv_V.noalias() = (LqInv * V);
 		// use varying lambda, not fixed: approximation of an optimal lambda as proposed by:
 		// the PhD thesis of P. Baerlocher, EPFL, Lausanne, 2001 (thesis no. 2383) based on:
 		//A.A. Maciejewski, C.A. Klein, “Numerical Filtering for the Operation of
@@ -474,26 +473,26 @@ RTT::os::TimeService::ticks time_begin = os::TimeService::Instance()->getTicks()
 		}
 
 		//U^T *Ly
-		priorities[i]->Ut_Ly = (priorities[i]->U.transpose()*priorities[i]->Ly_priority).lazy();
+		(priorities[i]->Ut_Ly).noalias() = (priorities[i]->U.transpose()*priorities[i]->Ly_priority);
 		//SinvD*U^T*Ly
-		priorities[i]->Sinv_Ut_Ly = (SinvD*priorities[i]->Ut_Ly).lazy();
+		(priorities[i]->Sinv_Ut_Ly).noalias() = (SinvD*priorities[i]->Ut_Ly);
 		//WDLS pseudo-inverse of Aprojected = LqInv*(V*SinvD*U^T)*Ly = LqInv_V*SinvD*Ut_Ly = LqInv_V*Sinv_Ut_Ly
-		priorities[i]->ApInv_WDLS = (LqInv_V*priorities[i]->Sinv_Ut_Ly).lazy();
+		(priorities[i]->ApInv_WDLS).noalias() = (LqInv_V*priorities[i]->Sinv_Ut_Ly);
 
 		//qdot=LqInv*V*S^-1*U'*Ly'*ydot
-		qdot_extra = (priorities[i]->ApInv_WDLS*priorities[i]->ydot_comp).lazy();
+		qdot_extra.noalias() = (priorities[i]->ApInv_WDLS*priorities[i]->ydot_comp);
 #ifndef NDEBUG
 		// log(Debug) << "qdot_extra = " << qdot_extra << endlog();
 #endif
 		//Extension of the solution in joint space with the implications of a task of the current priority
-		qdot = qdot_prev + qdot_extra;
+		qdot.noalias() = qdot_prev + qdot_extra;
 
 		//Calculate projection matrix for the next priority
 		//Sinv*U^T*Ly
-		priorities[i]->Sinv_Ut_Ly = (Sinv*priorities[i]->Ut_Ly).lazy();
+		(priorities[i]->Sinv_Ut_Ly).noalias() = (Sinv*priorities[i]->Ut_Ly);
 		//WLS pseudo-inverse of Aprojected = LqInv*(V*Sinv*U^T)*Ly = LqInv_V*Sinv*Ut_Ly = LqInv_V*Sinv_Ut_Ly
-		priorities[i]->ApInv_WLS = (LqInv_V*priorities[i]->Sinv_Ut_Ly).lazy();
-		P_extra = (priorities[i]->ApInv_WLS*priorities[i]->A_p).lazy();
+		(priorities[i]->ApInv_WLS).noalias() = (LqInv_V*priorities[i]->Sinv_Ut_Ly);
+		(P_extra).noalias() = (priorities[i]->ApInv_WLS*priorities[i]->A_p);
 		//P_k+1=P_k-pinv(Ap_k)*Ap_k
 		P = P_prev - P_extra;
 	}

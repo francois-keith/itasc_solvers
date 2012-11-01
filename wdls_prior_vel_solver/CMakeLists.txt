@@ -15,6 +15,6 @@ find_package(OROCOS-RTT REQUIRED ${RTT_HINTS})
 
 include(${OROCOS-RTT_USE_FILE_PATH}/UseOROCOS-RTT.cmake)
 
-add_definitions(-DEIGEN2_SUPPORT)
+#add_definitions(-DEIGEN2_SUPPORT)
 orocos_component(WDLSPriorVelSolver src/WDLSPriorVelSolver.hpp src/WDLSPriorVelSolver.cpp)
 orocos_generate_package()
