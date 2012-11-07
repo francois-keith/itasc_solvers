@@ -55,7 +55,7 @@ using namespace KDL;
 using namespace RTT;
 
 WDLSPriorVelSolver::WDLSPriorVelSolver(const string& name) :
-	Solver(name, 0),
+	Solver(name, false),
 	nc_local(0),
 	nq_local(0),
 	priorityNo(1),
