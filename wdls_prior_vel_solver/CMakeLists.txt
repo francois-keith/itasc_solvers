@@ -19,12 +19,14 @@ include(${OROCOS-RTT_USE_FILE_PATH}/UseOROCOS-RTT.cmake)
 
 #add_definitions(-DEIGEN2_SUPPORT)
 orocos_component(WDLSPriorVelSolver src/WDLSPriorVelSolver.hpp src/WDLSPriorVelSolver.cpp)
-orocos_component(HQPVelSolver src/HQPVelSolver.hpp src/HQPVelSolver.cpp)
 
+# # Additional solver.
 # Search for dependencies.
-ADD_REQUIRED_DEPENDENCY("soth")
-PKG_CONFIG_USE_DEPENDENCY(HQPVelSolver soth)
+ADD_OPTIONAL_DEPENDENCY("soth")
 
-add_subdirectory(test)
+IF(SOTH_FOUND)
+  orocos_component(HQPSolver src/HQPSolver.hpp src/HQPSolver.cpp)
+  PKG_CONFIG_USE_DEPENDENCY(HQPSolver soth)
+ENDIF(SOTH_FOUND)
 
 orocos_generate_package()

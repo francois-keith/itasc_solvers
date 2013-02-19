@@ -1,4 +1,4 @@
-#include "HQPVelSolver.hpp"
+#include "HQPSolver.hpp"
 
 #include <ocl/Component.hpp>
 
@@ -7,7 +7,7 @@
 
 #include <rtt/os/TimeService.hpp>
 
-ORO_CREATE_COMPONENT( iTaSC::HQPVelSolver );
+ORO_CREATE_COMPONENT( iTaSC::HQPSolver );
 
 namespace iTaSC {
 	using namespace Eigen;
@@ -15,8 +15,8 @@ namespace iTaSC {
 	using namespace KDL;
 	using namespace RTT;
 
-	HQPVelSolver::HQPVelSolver(const string& name) :
-		Solver(name, false),
+	HQPSolver::HQPSolver(const string& name) :
+		Solver(name, true),
 		hsolver(),
 		Ctasks(),
 		btasks(),
@@ -26,28 +26,31 @@ namespace iTaSC {
 		this->addPort("nc_priorities",nc_priorities_port).doc("Port with vector of number of constraints per priority.");
 		this->addPort("damping",damping_port).doc("Port with damping factor for the solver.");
 
-		this->provides()->addAttribute("priorityNo_", priorityNo_); //"Number of priorities involved. (default = 1)"
+		this->provides()->addAttribute("priorityNo", priorityNo); //"Number of priorities involved. (default = 1)"
 		this->provides()->addProperty("precision", precision).doc("Precision for the comparison of matrices. (default = 1e-3)");
 
 		//solve is already added as an operation in Solver.hpp
 	}
 
-	HQPVelSolver::~HQPVelSolver()
+	HQPSolver::~HQPSolver()
 	{
-		for (unsigned int i=0;i<priorityNo_;i++)
+		for (unsigned int i=0;i<priorityNo;i++)
 			delete priorities[i];
 	}
 
 
 	// Resize the problem
-	bool HQPVelSolver::configureHook()
+	bool HQPSolver::configureHook()
 	{
 		Logger::In in(this->getName());
 		// the number of priority corresponds to the number of tasks
-		priorities.resize(priorityNo_);
+		priorities.resize(priorityNo);
 		nc_priorities_port.read(nc_priorities);
 
-		for (unsigned int i=0;i<priorityNo_;i++)
+		std::cout << "priorityNo " << priorityNo << std::endl;
+		std::cout << "nc_priorities " << nc_priorities[0] << std::endl;
+
+		for (unsigned int i=0;i<priorityNo;i++)
 		{
 			priorities[i] = new Priority();
 			priorities[i]->nc_priority = nc_priorities[i];
@@ -65,7 +68,7 @@ namespace iTaSC {
 		solution.resize( nq );
 
 		//priority dependent creations/ initializations
-		for (unsigned int i=0;i<priorityNo_;i++)
+		for (unsigned int i=0;i<priorityNo;i++)
 		{
 			//create ports
 			ssName.clear();
@@ -93,26 +96,26 @@ namespace iTaSC {
 		return true;
 	}
 
-	bool HQPVelSolver::startHook()
+	bool HQPSolver::startHook()
 	{
 		return true;
 	}
-	void HQPVelSolver::updateHook() {}
-	void HQPVelSolver::stopHook() {}
-	void HQPVelSolver::cleanupHook() {}
+	void HQPSolver::updateHook() {}
+	void HQPSolver::stopHook() {}
+	void HQPSolver::cleanupHook() {}
 
 
 	/* Return true iff the solver sizes fit to the task set. */
-	bool HQPVelSolver::checkSolverSize( )
+	bool HQPSolver::checkSolverSize( )
 	{
 		assert( nq>0 );
 
 		if(! hsolver ) return false;
-		if( priorityNo_ != hsolver->nbStages() ) return false;
+		if( priorityNo != hsolver->nbStages() ) return false;
 
 		bool toBeResized=false;
 		/* TODO
-		for( unsigned i=0;i<priorityNo_;++i )
+		for( unsigned i=0;i<priorityNo;++i )
 		{
 			assert( Ctasks[i].cols() == nbDofs && Ctasks[i].rows() == btasks[i].size() );
 			TaskAbstract & task = *stack[i];
@@ -128,7 +131,7 @@ namespace iTaSC {
 	}
 
 
-	bool HQPVelSolver::solve()
+	bool HQPSolver::solve()
 	{
 		Logger::In in(this->getName());
 #ifndef NDEBUG
@@ -139,7 +142,8 @@ namespace iTaSC {
 		//initialize (useful?)
 		qdot.setZero();
 
-		if(! checkSolverSize() ) resizeSolver();
+		if(! checkSolverSize() )
+			resizeSolver();
 
 		using namespace soth;
 		double damping = 1e-2;
@@ -156,8 +160,11 @@ namespace iTaSC {
 		}
 
 		//priority loop
-		for (unsigned int i=0;i<priorityNo_;i++)
+		// for each task group
+		for (unsigned int i=0;i<priorityNo;i++)
 		{
+			// -- Assertions
+
 			//TODO check  the weight of each level	is 1
 			if(priorities[i]->Wy_port.read(priorities[i]->Wy_priority)== RTT::NoData)
 			{
@@ -195,8 +202,6 @@ namespace iTaSC {
 			qdot=solution;
 		}
 		else
-
-
 		{
 			qdot=solution.tail( nq-6 );
 		}
@@ -216,17 +221,17 @@ namespace iTaSC {
 	/** Knowing the sizes of all the stages (except the task ones),
 	 * the function resizes the matrix and vector of all stages
 	 */
-	void HQPVelSolver::resizeSolver( )
+	void HQPSolver::resizeSolver( )
 	{
 		// warning: loss of memory possible?
-		hsolver = hcod_ptr_t(new soth::HCOD( nq, priorityNo_ ));
-		Ctasks.resize(priorityNo_);
-		btasks.resize(priorityNo_);
+		hsolver = hcod_ptr_t(new soth::HCOD( nq, priorityNo ));
+		Ctasks.resize(priorityNo);
+		btasks.resize(priorityNo);
 
-		for(unsigned i=0; i<priorityNo_;++i)
+		for(unsigned i=0; i<priorityNo;++i)
 		{
 			if(priorities[i]->ydot_port.read(priorities[i]->ydot_priority)== RTT::NoData)
-				log(Error) << "No data on ydot_port. Call by HQPVelSolver::resizeSolver" << endlog();
+				log(Error) << "No data on ydot_port. Call by HQPSolver::resizeSolver" << endlog();
 
 			const int nx = priorities[i]->ydot_priority.size();
 			Ctasks[i].resize(nx,nq);

@@ -1,5 +1,5 @@
-#ifndef _ITASC_HQPVELOCITYSOLVER_HPP
-#define _ITASC_HQPVELOCITYSOLVER_HPP
+#ifndef _ITASC_HQP_SOLVER_HPP
+#define _ITASC_HQP_SOLVER_HPP
 
 #include <rtt/TaskContext.hpp>
 #include <algorithm>
@@ -14,11 +14,11 @@
 
 namespace iTaSC {
 
-class HQPVelSolver: public Solver {
+class HQPSolver: public Solver {
 public:
 	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-	HQPVelSolver(const std::string& name);
-	virtual ~HQPVelSolver();//destructor
+	HQPSolver(const std::string& name);
+	virtual ~HQPSolver();//destructor
 
 	virtual bool configureHook();
 	virtual bool startHook();
@@ -49,7 +49,7 @@ private:
 
 
 	// attribute: number of priorities involved (default = 1)
-	unsigned int priorityNo_;
+	unsigned int priorityNo;
 
 	// property: Capacity to be allocated for the vectors containing the used weights. (default = 1000)
 	// unsigned int Wcapacity;
