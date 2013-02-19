@@ -25,4 +25,6 @@ orocos_component(HQPVelSolver src/HQPVelSolver.hpp src/HQPVelSolver.cpp)
 ADD_REQUIRED_DEPENDENCY("soth")
 PKG_CONFIG_USE_DEPENDENCY(HQPVelSolver soth)
 
+add_subdirectory(test)
+
 orocos_generate_package()
