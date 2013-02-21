@@ -1,2 +1,7 @@
 *~
 *#
+.*.swp
+orocos.log
+build
+lib
+.tb_history
