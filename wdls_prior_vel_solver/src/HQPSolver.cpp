@@ -125,18 +125,15 @@ namespace iTaSC {
 		if( priorityNo != hsolver->nbStages() ) return false;
 
 		bool toBeResized=false;
-		/* TODO
 		for( unsigned i=0;i<priorityNo;++i )
 		{
-			assert( Ctasks[i].cols() == nbDofs && Ctasks[i].rows() == btasks[i].size() );
-			TaskAbstract & task = *stack[i];
-			if( btasks[i].size() != (int)task.taskSOUT.accessCopy().size() )
+			assert( Ctasks[i].cols() == nq && Ctasks[i].rows() == priorities[i]->nc_priority );
+			if( btasks[i].size() != priorities[i]->nc_priority)
 			{
 				toBeResized = true;
 				break;
 			}
 		}
-		*/
 
 		return !toBeResized;
 	}
