@@ -72,19 +72,28 @@ private:
 		unsigned int nc_priority;
 		RTT::InputPort<Eigen::MatrixXd> A_port;
 		RTT::InputPort<Eigen::MatrixXd> Wy_port;
+
+		// port for the value of the error and the bound min.
 		RTT::InputPort<Eigen::VectorXd> ydot_port;
+		// port for the max bound.
+		RTT::InputPort<Eigen::VectorXd> ydot_max_port;
+		// port for the max bound.
+		RTT::InputPort<Eigen::VectorXd> inequalities_port;
 
 		//generalized jacobian for a subtask with a certain priority
-		Eigen::MatrixXd A_priority;
+		Eigen::MatrixXd A_priority; // TODO: rename ?
 
 		//weight in the task space for the generalized jacobian = Wy = Ly^T Ly
-		Eigen::MatrixXd Wy_priority;
+		Eigen::MatrixXd Wy_priority; // TODO: rename ?
 
 		//task space coordinates
-		Eigen::VectorXd ydot_priority;
+		Eigen::VectorXd ydot_priority; // TODO: rename ?
+		Eigen::VectorXd ydot_priority_max; // TODO: rename ?
+
+		Eigen::VectorXd inequalities; // TODO: rename ?
 
 		Priority() :
-			//initialisations
+			//initializations
 			nc_priority(0)
 		{
 

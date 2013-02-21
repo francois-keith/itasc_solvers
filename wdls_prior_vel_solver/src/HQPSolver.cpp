@@ -79,10 +79,23 @@ namespace iTaSC {
 			ssName << "Wy_" << i+1;
 			ssName >> externalName;
 			this->ports()->addPort(externalName, priorities[i]->Wy_port).doc("Output weight matrix with priority of the index");
+
 			ssName.clear();
 			ssName << "ydot_" << i+1;
 			ssName >> externalName;
-			this->ports()->addPort(externalName, priorities[i]->ydot_port).doc("Desired output velocity with priority of the index");
+			this->ports()->addPort(externalName, priorities[i]->ydot_port).doc(
+						"Desired output velocity (or lower bound if ineq) with priority of the index");
+
+			ssName.clear();
+			ssName << "ydot_max_" << i+1;
+			ssName >> externalName;
+			this->ports()->addPort(externalName, priorities[i]->ydot_max_port).doc(
+						"Upper bound for the desired output velocity with priority of the index");
+
+			ssName.clear();
+			ssName << "inequalities_" << i+1;
+			ssName >> externalName;
+			this->ports()->addPort(externalName, priorities[i]->inequalities_port).doc("Inequality flag: which tasks are the inequalities?");
 
 			//initializations
 			priorities[i]->A_priority.resize(priorities[i]->nc_priority, nq);
@@ -171,7 +184,24 @@ namespace iTaSC {
 				//assert( true );
 			}
 
-			//rea
+			// check that there are no inequalities / equalities mixed.
+			// priorities[i]->inequalities lists the dof in equality and in equality
+			if(priorities[i]->inequalities_port.read(priorities[i]->inequalities) != RTT::NoData)
+			{
+				if ( (priorities[i]->inequalities.size() != 0)
+						&& (priorities[i]->inequalities.size() != priorities[i]->nc_priority) )
+					log(Error) << " The HQP solver cannot handle mixed inequalities and equalities "
+										 << priorities[i]->inequalities.transpose() << endlog();
+			}
+			else
+			{
+//				std::cerr << " Nothing given : assuming equality. " << std::endl;
+				// TODO: assume inequality
+				priorities[i]->inequalities.resize(0);
+			}
+
+
+			// -- Handle the tasks.
 
 			// the input ports
 			if(priorities[i]->A_port.read(priorities[i]->A_priority)== RTT::NoData)
@@ -180,14 +210,36 @@ namespace iTaSC {
 			if(priorities[i]->ydot_port.read(priorities[i]->ydot_priority)== RTT::NoData)
 				log(Error) << "No data on ydot_port" << endlog();
 
-			// Fill the solver.
+			// Fill the solver: the jacobian.
 			MatrixXd & Ctask = Ctasks[i];
 			Ctask = priorities[i]->A_priority;
 
+			// Fill the solver: the reference.
 			VectorBound & btask = btasks[i];
 			const int nx1 = priorities[i]->ydot_priority.size();
-			for( int c=0;c<nx1;++c )
-				btask[c] = priorities[i]->ydot_priority[c];
+
+			//equality task.
+			if(priorities[i]->inequalities.size() == 0)
+			{
+//				std::cout << "Equality constraint at level " << i << std::endl;
+				for( int c=0;c<nx1;++c )
+					btask[c] = priorities[i]->ydot_priority[c];
+			}
+			else
+			{
+//				std::cout << "Inequality constraint at level " << i << std::endl;
+				if(priorities[i]->ydot_max_port.read(priorities[i]->ydot_priority_max)== RTT::NoData)
+					log(Error) << "No data on ydot_max_port" << endlog();
+
+				assert(ydot_priority_max.size() == ydot_priority.size());
+
+				//TODO: it could be good to define unilateral inequality constraint
+				for( int c=0;c<nx1;++c )
+					btask[c] = std::pair<double,double>(
+						priorities[i]->ydot_priority[c],
+						priorities[i]->ydot_priority_max[c]
+					);
+			}
 		}
 
 		// compute the solution
@@ -209,10 +261,10 @@ namespace iTaSC {
 
 		qdot_port.write(qdot);
 
-	//	#ifndef NDEBUG
-	//	log(Debug) <<"qdot written \n"<< qdot << endlog();
-	//	log(Debug) << "It took " << os::TimeService::Instance()->secondsSince(time_begin) << " seconds to solve." << endlog();
-	//	#endif
+		#ifndef NDEBUG
+		log(Debug) <<"qdot written \n"<< qdot << endlog();
+		log(Debug) << "It took " << os::TimeService::Instance()->secondsSince(time_begin) << " seconds to solve." << endlog();
+		#endif
 
 		return true;
 	}
