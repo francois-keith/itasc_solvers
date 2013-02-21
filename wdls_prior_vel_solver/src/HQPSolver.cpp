@@ -50,6 +50,9 @@ namespace iTaSC {
 		std::cout << "priorityNo " << priorityNo << std::endl;
 		std::cout << "nc_priorities " << nc_priorities[0] << std::endl;
 
+		qdot.resize(nq);
+		solution.resize( nq );
+
 		for (unsigned int i=0;i<priorityNo;i++)
 		{
 			priorities[i] = new Priority();
@@ -60,21 +63,16 @@ namespace iTaSC {
 			ssName.clear();
 			ssName << "nc_" << i+1;
 			ssName >> externalName;
-			this->provides()->addAttribute(externalName, priorities[i]->nc_priority);//"Number of constraint coordinates for the priority of the index."
-			//this->provides()->setValue( new Attribute<unsigned int>(externalName,priorities[i]->nc_priority) );
-		}
+			//"Number of constraint coordinates for the priority of the index."
+			this->provides()->addAttribute(externalName, priorities[i]->nc_priority);
 
-		qdot.resize(nq);
-		solution.resize( nq );
-
-		//priority dependent creations/ initializations
-		for (unsigned int i=0;i<priorityNo;i++)
-		{
+			//priority dependent creations/ initializations
 			//create ports
 			ssName.clear();
 			ssName << "A_" << i+1;
 			ssName >> externalName;
 			this->ports()->addPort(externalName, priorities[i]->A_port).doc("Generalized Jacobian with priority of the index");
+
 			ssName.clear();
 			ssName << "Wy_" << i+1;
 			ssName >> externalName;
@@ -152,6 +150,15 @@ namespace iTaSC {
 		RTT::os::TimeService::ticks time_begin = os::TimeService::Instance()->getTicks();
 #endif //NDEBUG
 
+		// verifivation Wq == identity.
+		Eigen::MatrixXd Wq;
+		if( Wq_port.read(Wq) == RTT::NoData || Wq.isIdentity() == false)
+		{
+			log(Error) << " HQP solver only handle the case where Wq = Identity " << endlog();
+			return false;
+		}
+
+
 		//initialize (useful?)
 		qdot.setZero();
 
@@ -195,7 +202,6 @@ namespace iTaSC {
 			}
 			else
 			{
-//				std::cerr << " Nothing given : assuming equality. " << std::endl;
 				// TODO: assume inequality
 				priorities[i]->inequalities.resize(0);
 			}
@@ -221,16 +227,17 @@ namespace iTaSC {
 			//equality task.
 			if(priorities[i]->inequalities.size() == 0)
 			{
-//				std::cout << "Equality constraint at level " << i << std::endl;
 				for( int c=0;c<nx1;++c )
 					btask[c] = priorities[i]->ydot_priority[c];
 			}
 			else
 			{
-//				std::cout << "Inequality constraint at level " << i << std::endl;
 				if(priorities[i]->ydot_max_port.read(priorities[i]->ydot_priority_max)== RTT::NoData)
+				{
 					log(Error) << "No data on ydot_max_port" << endlog();
-
+					log(Error) << "For now, we only handle double inequalities." << endlog();
+					return false;
+				}
 				assert(ydot_priority_max.size() == ydot_priority.size());
 
 				//TODO: it could be good to define unilateral inequality constraint
@@ -283,7 +290,7 @@ namespace iTaSC {
 		for(unsigned i=0; i<priorityNo;++i)
 		{
 			if(priorities[i]->ydot_port.read(priorities[i]->ydot_priority)== RTT::NoData)
-				log(Error) << "No data on ydot_port. Call by HQPSolver::resizeSolver" << endlog();
+				log(Error) << "No data on ydot_port. Called by HQPSolver::resizeSolver" << endlog();
 
 			const int nx = priorities[i]->ydot_priority.size();
 			Ctasks[i].resize(nx,nq);
