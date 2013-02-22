@@ -9,6 +9,18 @@
 
 ORO_CREATE_COMPONENT( iTaSC::HQPSolver );
 
+namespace
+{
+	// A tool method. To be removed, hopefully.
+	bool isInSet(int c, const VectorXd & v)
+	{
+		for (int i=0; i < v.size(); ++i)
+			if (v[i] == c)
+				return true;
+		return false;
+	}
+}
+
 namespace iTaSC {
 	using namespace Eigen;
 	using namespace std;
@@ -46,9 +58,6 @@ namespace iTaSC {
 		// the number of priority corresponds to the number of tasks
 		priorities.resize(priorityNo);
 		nc_priorities_port.read(nc_priorities);
-
-		std::cout << "priorityNo " << priorityNo << std::endl;
-		std::cout << "nc_priorities " << nc_priorities[0] << std::endl;
 
 		qdot.resize(nq);
 		solution.resize( nq );
@@ -188,20 +197,9 @@ namespace iTaSC {
 				//assert( true );
 			}
 
-			// check that there are no inequalities / equalities mixed.
 			// priorities[i]->inequalities lists the dof in equality and in equality
-			if(priorities[i]->inequalities_port.read(priorities[i]->inequalities) != RTT::NoData)
-			{
-				if ( (priorities[i]->inequalities.size() != 0)
-						&& (priorities[i]->inequalities.size() != priorities[i]->nc_priority) )
-					log(Error) << " The HQP solver cannot handle mixed inequalities and equalities "
-										 << priorities[i]->inequalities.transpose() << endlog();
-			}
-			else
-			{
-				// TODO: assume inequality
+			if(priorities[i]->inequalities_port.read(priorities[i]->inequalities) == RTT::NoData)
 				priorities[i]->inequalities.resize(0);
-			}
 
 
 			// -- Handle the tasks.
@@ -239,10 +237,22 @@ namespace iTaSC {
 
 				//TODO: it could be good to define unilateral inequality constraint
 				for( int c=0;c<nx1;++c )
-					btask[c] = std::pair<double,double>(
-						priorities[i]->ydot_priority[c],
-						priorities[i]->ydot_priority_max[c]
-					);
+				{
+					// if this is a unilateral constraint
+					if( isInSet(c, priorities[i]->inequalities) )
+					{
+						assert(priorities[i]->ydot_priority[c] <= priorities[i]->ydot_priority_max[c]);
+
+						btask[c] = std::pair<double,double>(
+							priorities[i]->ydot_priority[c],
+							priorities[i]->ydot_priority_max[c]
+						);
+					}
+					else
+					{
+						btask[c] = priorities[i]->ydot_priority[c];
+					}
+				}
 			}
 		}
 
