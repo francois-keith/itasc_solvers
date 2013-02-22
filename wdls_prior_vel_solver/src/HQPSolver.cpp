@@ -199,7 +199,10 @@ namespace iTaSC {
 
 			// priorities[i]->inequalities lists the dof in equality and in equality
 			if(priorities[i]->inequalities_port.read(priorities[i]->inequalities) == RTT::NoData)
-				priorities[i]->inequalities.resize(0);
+				priorities[i]->inequalities.resize(0); // no inequalities.
+			else if ( (priorities[i]->inequalities.size() != 0)
+				&& (priorities[i]->inequalities.size() != priorities[i]->nc_priority))
+					log(Error) << "Incorrect size for the vector inequalities." << endlog();
 
 
 			// -- Handle the tasks.
@@ -238,19 +241,27 @@ namespace iTaSC {
 				for( unsigned c=0;c<nx1;++c )
 				{
 					// if this is a unilateral constraint
-					if( isInVector(c, priorities[i]->inequalities) )
+					switch ( priorities[i]->inequalities[c] )
 					{
-						assert(priorities[i]->ydot_priority[c] <= priorities[i]->ydot_priority_max[c]);
-
-						btask[c] = std::pair<double,double>(
-							priorities[i]->ydot_priority[c],
-							priorities[i]->ydot_priority_max[c]
-						);
-					}
-					else
-					{
-						btask[c] = priorities[i]->ydot_priority[c];
-					}
+						case(0):
+							btask[c] = priorities[i]->ydot_priority[c];
+							break;
+						case(1):
+							btask[c] = Bound( priorities[i]->ydot_priority[c], Bound::BOUND_INF);
+							break;
+						case(2):
+							btask[c] = Bound( priorities[i]->ydot_priority[c], Bound::BOUND_SUP);
+							break;
+						case(3):
+							assert(priorities[i]->ydot_priority[c] <= priorities[i]->ydot_priority_max[c]);
+							btask[c] = std::pair<double,double>(
+								priorities[i]->ydot_priority[c],
+								priorities[i]->ydot_priority_max[c]
+							);
+							break;
+						default:
+							std::cerr << " Unknown inequality type: " << priorities[i]->inequalities[c] << std::endl;
+						}
 				}
 			}
 		}
