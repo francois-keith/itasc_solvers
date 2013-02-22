@@ -12,9 +12,9 @@ ORO_CREATE_COMPONENT( iTaSC::HQPSolver );
 namespace
 {
 	// A tool method. To be removed, hopefully.
-	bool isInSet(int c, const VectorXd & v)
+	bool isInVector(unsigned c, const std::vector<unsigned> & v)
 	{
-		for (int i=0; i < v.size(); ++i)
+		for (unsigned i=0; i < v.size(); ++i)
 			if (v[i] == c)
 				return true;
 		return false;
@@ -217,12 +217,12 @@ namespace iTaSC {
 
 			// Fill the solver: the reference.
 			VectorBound & btask = btasks[i];
-			const int nx1 = priorities[i]->ydot_priority.size();
+			const unsigned nx1 = priorities[i]->ydot_priority.size();
 
 			//equality task.
 			if(priorities[i]->inequalities.size() == 0)
 			{
-				for( int c=0;c<nx1;++c )
+				for( unsigned c=0;c<nx1;++c )
 					btask[c] = priorities[i]->ydot_priority[c];
 			}
 			else
@@ -235,11 +235,10 @@ namespace iTaSC {
 				}
 				assert(ydot_priority_max.size() == ydot_priority.size());
 
-				//TODO: it could be good to define unilateral inequality constraint
-				for( int c=0;c<nx1;++c )
+				for( unsigned c=0;c<nx1;++c )
 				{
 					// if this is a unilateral constraint
-					if( isInSet(c, priorities[i]->inequalities) )
+					if( isInVector(c, priorities[i]->inequalities) )
 					{
 						assert(priorities[i]->ydot_priority[c] <= priorities[i]->ydot_priority_max[c]);
 

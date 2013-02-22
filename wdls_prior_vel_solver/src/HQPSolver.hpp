@@ -78,7 +78,7 @@ private:
 		// port for the max bound.
 		RTT::InputPort<Eigen::VectorXd> ydot_max_port;
 		// port for the max bound.
-		RTT::InputPort<Eigen::VectorXd> inequalities_port;
+		RTT::InputPort< std::vector<unsigned> > inequalities_port;
 
 		//generalized jacobian for a subtask with a certain priority
 		Eigen::MatrixXd A_priority; // TODO: rename ?
@@ -90,7 +90,7 @@ private:
 		Eigen::VectorXd ydot_priority; // TODO: rename ?
 		Eigen::VectorXd ydot_priority_max; // TODO: rename ?
 
-		Eigen::VectorXd inequalities; // TODO: rename ?
+		std::vector<unsigned> inequalities;
 
 		Priority() :
 			//initializations
