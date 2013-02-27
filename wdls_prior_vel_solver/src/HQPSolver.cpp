@@ -156,7 +156,7 @@ namespace iTaSC {
 		RTT::os::TimeService::ticks time_begin = os::TimeService::Instance()->getTicks();
 #endif //NDEBUG
 
-		// verifivation Wq == identity.
+		// verification Wq == identity.
 		Eigen::MatrixXd Wq;
 		if( Wq_port.read(Wq) != RTT::NoData &&  Wq.isIdentity() == false)
 		{
@@ -164,8 +164,7 @@ namespace iTaSC {
 			return false;
 		}
 
-
-		//initialize (useful?)
+		//initialize qdot
 		qdot.setZero();
 
 		if(! checkSolverSize() )
@@ -185,8 +184,7 @@ namespace iTaSC {
 			hsolver->useDamp( false );
 		}
 
-		//priority loop
-		// for each task group
+		//priority loop: for each task group
 		for (unsigned int i=0;i<priorityNo;i++)
 		{
 			//TODO check that the tasks are not weighted (yet)
@@ -197,7 +195,7 @@ namespace iTaSC {
 				return false;
 			}
 
-			// priorities[i]->inequalities lists the dof in equality and in equality
+			// Check the size of the inequalities vector.
 			if(priorities[i]->inequalities_port.read(priorities[i]->inequalities) == RTT::NoData)
 				priorities[i]->inequalities.resize(0); // no inequalities.
 			else if ( (priorities[i]->inequalities.size() != 0)
@@ -228,7 +226,7 @@ namespace iTaSC {
 				for( unsigned c=0;c<nx1;++c )
 					btask[c] = priorities[i]->ydot_priority[c];
 			}
-			else
+			else // inequalities task
 			{
 				// only the lower bound is given. Correct only in the case where the
 				//  constraints are equality tasks or lb inequality tasks
@@ -246,9 +244,9 @@ namespace iTaSC {
 					}
 				}
 
+				// Fill the solver: the error.
 				for( unsigned c=0;c<nx1;++c )
 				{
-					// if this is a unilateral constraint
 					switch ( priorities[i]->inequalities[c] )
 					{
 						case(0):
@@ -291,7 +289,7 @@ namespace iTaSC {
 			qdot=solution.tail( nq-6 );
 		}
 
-
+		// Publish the result.
 		qdot_port.write(qdot);
 
 		#ifndef NDEBUG
@@ -308,7 +306,6 @@ namespace iTaSC {
 	 */
 	void HQPSolver::resizeSolver( )
 	{
-		// warning: loss of memory possible?
 		hsolver = hcod_ptr_t(new soth::HCOD( nq, priorityNo ));
 		Ctasks.resize(priorityNo);
 		btasks.resize(priorityNo);

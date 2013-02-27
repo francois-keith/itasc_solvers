@@ -51,9 +51,6 @@ private:
 	// attribute: number of priorities involved (default = 1)
 	unsigned int priorityNo;
 
-	// property: Capacity to be allocated for the vectors containing the used weights. (default = 1000)
-	// unsigned int Wcapacity;
-
 	// property: precision of matrix comparison
 	double precision;
 
