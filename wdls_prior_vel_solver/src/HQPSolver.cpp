@@ -158,9 +158,9 @@ namespace iTaSC {
 
 		// verifivation Wq == identity.
 		Eigen::MatrixXd Wq;
-		if( Wq_port.read(Wq) == RTT::NoData || Wq.isIdentity() == false)
+		if( Wq_port.read(Wq) != RTT::NoData &&  Wq.isIdentity() == false)
 		{
-			log(Error) << " HQP solver only handle the case where Wq = Identity " << endlog();
+			log(Error) << " HQP solver only handles the case where Wq = Identity " << endlog();
 			return false;
 		}
 
@@ -189,12 +189,12 @@ namespace iTaSC {
 		// for each task group
 		for (unsigned int i=0;i<priorityNo;i++)
 		{
-			// -- Assertions
-
-			//TODO check  the weight of each level	is 1
-			if(priorities[i]->Wy_port.read(priorities[i]->Wy_priority)== RTT::NoData)
+			//TODO check that the tasks are not weighted (yet)
+			if(priorities[i]->Wy_port.read(priorities[i]->Wy_priority) != RTT::NoData
+				 && priorities[i]->Wy_priority.isIdentity() == false)
 			{
-				//assert( true );
+				log(Error) << " HQP solver only handles the case where Wy = Identity " << endlog();
+				return false;
 			}
 
 			// priorities[i]->inequalities lists the dof in equality and in equality
@@ -230,13 +230,21 @@ namespace iTaSC {
 			}
 			else
 			{
+				// only the lower bound is given. Correct only in the case where the
+				//  constraints are equality tasks or lb inequality tasks
 				if(priorities[i]->ydot_max_port.read(priorities[i]->ydot_priority_max)== RTT::NoData)
 				{
-					log(Error) << "No data on ydot_max_port" << endlog();
-					log(Error) << "For now, we only handle double inequalities." << endlog();
-					return false;
+					bool upperBoundUseless = true;
+					for( unsigned c=0;c<nx1;++c )
+						if ( (priorities[i]->inequalities[c] != 0) && (priorities[i]->inequalities[c] != 1))
+							upperBoundUseless = false;
+					if(upperBoundUseless == false)
+					{
+						log(Error) << "No data on ydot_max_port" << endlog();
+						log(Error) << "For now, we only handle double inequalities." << endlog();
+						return false;
+					}
 				}
-				assert(ydot_priority_max.size() == ydot_priority.size());
 
 				for( unsigned c=0;c<nx1;++c )
 				{
@@ -253,6 +261,7 @@ namespace iTaSC {
 							btask[c] = Bound( priorities[i]->ydot_priority_max[c], Bound::BOUND_SUP);
 							break;
 						case(3):
+							assert(ydot_priority_max.size() == ydot_priority.size());
 							assert(priorities[i]->ydot_priority[c] <= priorities[i]->ydot_priority_max[c]);
 							btask[c] = std::pair<double,double>(
 								priorities[i]->ydot_priority[c],
