@@ -250,7 +250,7 @@ namespace iTaSC {
 							btask[c] = Bound( priorities[i]->ydot_priority[c], Bound::BOUND_INF);
 							break;
 						case(2):
-							btask[c] = Bound( priorities[i]->ydot_priority[c], Bound::BOUND_SUP);
+							btask[c] = Bound( priorities[i]->ydot_priority_max[c], Bound::BOUND_SUP);
 							break;
 						case(3):
 							assert(priorities[i]->ydot_priority[c] <= priorities[i]->ydot_priority_max[c]);
