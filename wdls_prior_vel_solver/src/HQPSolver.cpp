@@ -60,12 +60,12 @@ namespace iTaSC {
 		nc_priorities_port.read(nc_priorities);
 
 		qdot.resize(nq);
+		Wq = Eigen::MatrixXd::Zero(nq,nq);
 		solution.resize( nq );
 
 		for (unsigned int i=0;i<priorityNo;i++)
 		{
-			priorities[i] = new Priority();
-			priorities[i]->nc_priority = nc_priorities[i];
+			priorities[i] = new Priority(nc_priorities[i], nq);
 			log(Info) << " [Configuring] Got following number of constraints for priority "<< i+1 << " = \n " << nc_priorities[i] << endlog();
 
 			//create attributes
@@ -103,14 +103,6 @@ namespace iTaSC {
 			ssName << "inequalities_" << i+1;
 			ssName >> externalName;
 			this->ports()->addPort(externalName, priorities[i]->inequalities_port).doc("Inequality flag: which tasks are the inequalities?");
-
-			//initializations
-			priorities[i]->A_priority.resize(priorities[i]->nc_priority, nq);
-			priorities[i]->A_priority.setZero();
-			priorities[i]->Wy_priority.resize(priorities[i]->nc_priority, priorities[i]->nc_priority);
-			priorities[i]->Wy_priority.setIdentity();
-			priorities[i]->ydot_priority.resize(priorities[i]->nc_priority);
-			priorities[i]->ydot_priority.setZero();
 		}
 
 		return true;
@@ -157,7 +149,6 @@ namespace iTaSC {
 #endif //NDEBUG
 
 		// verification Wq == identity.
-		Eigen::MatrixXd Wq;
 		if( Wq_port.read(Wq) != RTT::NoData &&  Wq.isIdentity() == false)
 		{
 			log(Error) << " HQP solver only handles the case where Wq = Identity " << endlog();
@@ -333,3 +324,15 @@ namespace iTaSC {
 }
 
 
+namespace iTaSC
+{
+	HQPSolver::Priority::Priority(unsigned nc, unsigned nq)
+	: nc_priority(nc)
+	, A_priority        (Eigen::MatrixXd::Zero(nc, nq) )
+	, Wy_priority       (Eigen::MatrixXd::Identity(nc, nc))
+	, ydot_priority     (Eigen::VectorXd::Zero(nc) )
+	, ydot_priority_max (Eigen::VectorXd::Zero(nc) )
+	, inequalities (0)
+	{
+	}
+}

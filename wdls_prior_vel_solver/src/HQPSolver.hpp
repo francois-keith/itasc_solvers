@@ -61,41 +61,60 @@ private:
 	// Port for the damping value.
 	RTT::InputPort< double > damping_port;
 
+	// Memory allocation
+	Eigen::MatrixXd Wq;
+
 
 	//std::vector priorities contains structs of the "Priority" type
 	struct Priority
 	{
 	public:
-		unsigned int nc_priority;
+		// nq is the number of joints
+		// nc is the size of the error
+		Priority(unsigned nc, unsigned nq);
+
+	public:
+		//// PORTS
+		// port for the jacobian
 		RTT::InputPort<Eigen::MatrixXd> A_port;
+
+		// port for error desired
 		RTT::InputPort<Eigen::MatrixXd> Wy_port;
 
 		// port for the value of the error and the bound min.
 		RTT::InputPort<Eigen::VectorXd> ydot_port;
+
 		// port for the max bound.
 		RTT::InputPort<Eigen::VectorXd> ydot_max_port;
+
 		// port for the max bound.
 		RTT::InputPort< std::vector<unsigned> > inequalities_port;
 
+
+	public:
+		//// PARAMETERS
+		// error size
+		unsigned int nc_priority;
+
 		//generalized jacobian for a subtask with a certain priority
-		Eigen::MatrixXd A_priority; // TODO: rename ?
+		Eigen::MatrixXd A_priority;
 
 		//weight in the task space for the generalized jacobian = Wy = Ly^T Ly
-		Eigen::MatrixXd Wy_priority; // TODO: rename ?
+		Eigen::MatrixXd Wy_priority;
 
 		//task space coordinates
-		Eigen::VectorXd ydot_priority; // TODO: rename ?
-		Eigen::VectorXd ydot_priority_max; // TODO: rename ?
+		Eigen::VectorXd ydot_priority;
 
+		//Upper bound desired task value (optional)
+		Eigen::VectorXd ydot_priority_max;
+
+		// vector indicating the type of constraint considered (optional)
+		// 0: equality,  1: lower inequality, 2: upper inequality,
+		// 3: double bound inequality
 		std::vector<unsigned> inequalities;
-
-		Priority() :
-			//initializations
-			nc_priority(0)
-		{
-
-		}
 	};
+
+
 	std::vector<Priority*> priorities;
 
 // temporary data only used to avoid time consuption at the creation.
