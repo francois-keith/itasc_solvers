@@ -7,6 +7,8 @@
 
 #include <rtt/os/TimeService.hpp>
 
+#include <Eigen/Dense>
+
 ORO_CREATE_COMPONENT( iTaSC::HQPSolver );
 
 namespace
@@ -32,7 +34,15 @@ namespace iTaSC {
 		hsolver(),
 		Ctasks(),
 		btasks(),
-		solution()
+		solution(),
+		qdot(),
+		priorityNo(1),
+		precision(1e-3),
+		nc_priorities(0),
+		Wq(),
+		Lq(),
+		invLq(),
+		kernQ()
 	{
 		//nq is already an attribute due to Solver.hpp
 		this->addPort("nc_priorities",nc_priorities_port).doc("Port with vector of number of constraints per priority.");
@@ -60,7 +70,10 @@ namespace iTaSC {
 		nc_priorities_port.read(nc_priorities);
 
 		qdot.resize(nq);
-		Wq = Eigen::MatrixXd::Zero(nq,nq);
+		Wq = Eigen::MatrixXd::Identity(nq,nq);
+		Lq = Eigen::MatrixXd::Identity(nq,nq);
+		invLq = Eigen::MatrixXd::Identity(nq,nq);
+		kernQ = Eigen::MatrixXd::Identity(nq,nq);
 		solution.resize( nq );
 
 		for (unsigned int i=0;i<priorityNo;i++)
@@ -151,8 +164,10 @@ namespace iTaSC {
 		// verification Wq == identity.
 		if( Wq_port.read(Wq) != RTT::NoData &&  Wq.isIdentity() == false)
 		{
-			log(Error) << " HQP solver only handles the case where Wq = Identity " << endlog();
-			return false;
+			LLT<MatrixXd> llwq(Wq);    // compute the Cholesky decomposition of A
+			Lq = llwq.matrixL();       // retrieve factor L in the decomposition
+			invLq = Lq.inverse();      // compute the inverse of Lq
+			kernQ = invLq * Lq;
 		}
 
 		//initialize qdot
@@ -213,9 +228,9 @@ namespace iTaSC {
 			// compute the jacobian.
 			MatrixXd & Ctask = Ctasks[i];
 			if (!wyIsIdentity)
-				Ctask = priorities[i]->Ly * priorities[i]->A_priority;
+				Ctask = priorities[i]->Ly * priorities[i]->A_priority * kernQ;
 			else
-				Ctask = priorities[i]->A_priority;
+				Ctask = priorities[i]->A_priority * kernQ;
 
 
 			// Fill the solver: the reference.

@@ -64,6 +64,11 @@ private:
 	// Memory allocation
 	Eigen::MatrixXd Wq;
 
+	// Memory allocation matrix concerning the decomposition of Wq
+	//  Wq corresponds to the weighting of the joint contribution
+	Eigen::MatrixXd Lq;     //
+	Eigen::MatrixXd invLq;  // inverse of Lq
+	Eigen::MatrixXd kernQ;
 
 	//std::vector priorities contains structs of the "Priority" type
 	struct Priority
