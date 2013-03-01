@@ -178,12 +178,15 @@ namespace iTaSC {
 		//priority loop: for each task group
 		for (unsigned int i=0;i<priorityNo;i++)
 		{
-			//TODO check that the tasks are not weighted (yet)
+			bool wyIsIdentity = true;
+
 			if(priorities[i]->Wy_port.read(priorities[i]->Wy_priority) != RTT::NoData
 				 && priorities[i]->Wy_priority.isIdentity() == false)
 			{
-				log(Error) << " HQP solver only handles the case where Wy = Identity " << endlog();
-				return false;
+				wyIsIdentity = false;
+				// log(Error) << "Wy should be the identity matrix." << endlog();
+				Eigen::LLT<Eigen::MatrixXd> llwy(priorities[i]->Wy_priority); // compute the Cholesky decomposition of A
+				priorities[i]->Ly = llwy.matrixL();             // retrieve factor L in the decomposition
 			}
 
 			// Check the size of the inequalities vector.
@@ -203,22 +206,39 @@ namespace iTaSC {
 			if(priorities[i]->ydot_port.read(priorities[i]->ydot_priority)== RTT::NoData)
 				log(Error) << "No data on ydot_port" << endlog();
 
-			// Fill the solver: the jacobian.
+			if(priorities[i]->ydot_port.read(priorities[i]->ydot_priority)== RTT::NoData)
+				log(Error) << "No data on ydot_port" << endlog();
+
+			// Fill the solver:
+			// compute the jacobian.
 			MatrixXd & Ctask = Ctasks[i];
-			Ctask = priorities[i]->A_priority;
+			if (!wyIsIdentity)
+				Ctask = priorities[i]->Ly * priorities[i]->A_priority;
+			else
+				Ctask = priorities[i]->A_priority;
+
 
 			// Fill the solver: the reference.
 			VectorBound & btask = btasks[i];
 			const unsigned nx1 = priorities[i]->ydot_priority.size();
 
+			Eigen::VectorXd wy_ydot_lb;
+
+			if(!wyIsIdentity)
+				wy_ydot_lb = priorities[i]->Ly * priorities[i]->ydot_priority;
+			else
+				wy_ydot_lb = priorities[i]->ydot_priority;
+
 			//equality task.
 			if(priorities[i]->inequalities.size() == 0)
 			{
 				for( unsigned c=0;c<nx1;++c )
-					btask[c] = priorities[i]->ydot_priority[c];
+					btask[c] = wy_ydot_lb[c];
 			}
 			else // inequalities task
 			{
+				Eigen::VectorXd wy_ydot_ub;
+
 				// only the lower bound is given. Correct only in the case where the
 				//  constraints are equality tasks or lb inequality tasks
 				if(priorities[i]->ydot_max_port.read(priorities[i]->ydot_priority_max)== RTT::NoData)
@@ -234,6 +254,13 @@ namespace iTaSC {
 						return false;
 					}
 				}
+				else
+				{
+					if(!wyIsIdentity)
+						wy_ydot_ub = priorities[i]->Ly * priorities[i]->ydot_priority_max;
+					else
+						wy_ydot_ub = priorities[i]->ydot_priority_max;
+				}
 
 				// Fill the solver: the error.
 				for( unsigned c=0;c<nx1;++c )
@@ -241,20 +268,18 @@ namespace iTaSC {
 					switch ( priorities[i]->inequalities[c] )
 					{
 						case(0):
-							btask[c] = priorities[i]->ydot_priority[c];
+							btask[c] = wy_ydot_lb[c];
 							break;
 						case(1):
-							btask[c] = Bound( priorities[i]->ydot_priority[c], Bound::BOUND_INF);
+							btask[c] = Bound( wy_ydot_lb[c], Bound::BOUND_INF);
 							break;
 						case(2):
-							btask[c] = Bound( priorities[i]->ydot_priority_max[c], Bound::BOUND_SUP);
+							btask[c] = Bound( wy_ydot_ub[c], Bound::BOUND_SUP);
 							break;
 						case(3):
 							assert(ydot_priority_max.size() == ydot_priority.size());
-							assert(priorities[i]->ydot_priority[c] <= priorities[i]->ydot_priority_max[c]);
-							btask[c] = std::pair<double,double>(
-								priorities[i]->ydot_priority[c],
-								priorities[i]->ydot_priority_max[c]
+							assert(wy_ydot_lb[c] <= wy_ydot_ub[c]);
+							btask[c] = std::pair<double,double>(wy_ydot_lb[c], wy_ydot_ub[c]
 							);
 							break;
 						default:
@@ -333,6 +358,7 @@ namespace iTaSC
 	, ydot_priority     (Eigen::VectorXd::Zero(nc) )
 	, ydot_priority_max (Eigen::VectorXd::Zero(nc) )
 	, inequalities (0)
+	, Ly(Eigen::MatrixXd::Identity(nc, nc))
 	{
 	}
 }

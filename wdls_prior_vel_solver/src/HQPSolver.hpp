@@ -112,8 +112,10 @@ private:
 		// 0: equality,  1: lower inequality, 2: upper inequality,
 		// 3: double bound inequality
 		std::vector<unsigned> inequalities;
-	};
 
+		// Memory allocation matrix concerning the decomposition of Wy
+		Eigen::MatrixXd Ly;     //
+	};
 
 	std::vector<Priority*> priorities;
 
