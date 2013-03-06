@@ -40,10 +40,10 @@ namespace iTaSC {
 		precision(1e-3),
 		nc_priorities(0),
 		Wq(),
-		Lq(),
-		invLq(),
-		kernQ()
+		Lq()
 	{
+		this->ports()->addPort("Wq_diag",Wq_diag_port).doc("diagonal of weights on robot joints");
+
 		//nq is already an attribute due to Solver.hpp
 		this->addPort("nc_priorities",nc_priorities_port).doc("Port with vector of number of constraints per priority.");
 		this->addPort("damping",damping_port).doc("Port with damping factor for the solver.");
@@ -71,9 +71,8 @@ namespace iTaSC {
 
 		qdot.resize(nq);
 		Wq = Eigen::MatrixXd::Identity(nq,nq);
+		Wq_diag = Eigen::VectorXd::Ones(nq);
 		Lq = Eigen::MatrixXd::Identity(nq,nq);
-		invLq = Eigen::MatrixXd::Identity(nq,nq);
-		kernQ = Eigen::MatrixXd::Identity(nq,nq);
 		solution.resize( nq );
 
 		for (unsigned int i=0;i<priorityNo;i++)
@@ -131,12 +130,14 @@ namespace iTaSC {
 
 
 	/* Return true iff the solver sizes fit to the task set. */
-	bool HQPSolver::checkSolverSize( )
+	bool HQPSolver::checkSolverSize(bool wqProvided)
 	{
 		assert( nq>0 );
+		unsigned hsolverSize = (wqProvided) ? priorityNo+1 : priorityNo;
+
 
 		if(! hsolver ) return false;
-		if( priorityNo != hsolver->nbStages() ) return false;
+		if( hsolverSize != hsolver->nbStages() ) return false;
 
 		bool toBeResized=false;
 		for( unsigned i=0;i<priorityNo;++i )
@@ -148,6 +149,9 @@ namespace iTaSC {
 				break;
 			}
 		}
+
+		if(wqProvided && ( btasks[priorityNo].size() != nq))
+			toBeResized = true;
 
 		return !toBeResized;
 	}
@@ -161,20 +165,28 @@ namespace iTaSC {
 		RTT::os::TimeService::ticks time_begin = os::TimeService::Instance()->getTicks();
 #endif //NDEBUG
 
-		// verification Wq == identity.
-		if( Wq_port.read(Wq) != RTT::NoData &&  Wq.isIdentity() == false)
+		// Checking whether Wq or Wq_diag is provided
+		// Checking also if Wq = Id to avoid useless computations.
+		bool wqIsIdentity = true;
+		if( Wq_port.read(Wq) != RTT::NoData )
 		{
-			LLT<MatrixXd> llwq(Wq);    // compute the Cholesky decomposition of A
-			Lq = llwq.matrixL();       // retrieve factor L in the decomposition
-			invLq = Lq.inverse();      // compute the inverse of Lq
-			kernQ = invLq * Lq;
+				wqIsIdentity = Wq.isIdentity();
+		}
+		else if( Wq_diag_port.read(Wq_diag)!= RTT::NoData )
+		{
+			// create the Wq matrix
+			Wq = Eigen::MatrixXd::Zero(nq,nq);
+			for (unsigned i=0; i<nq ; ++i)
+				Wq(i,i) = Wq_diag[i];
+
+				wqIsIdentity = Wq.isIdentity();
 		}
 
 		//initialize qdot
 		qdot.setZero();
 
-		if(! checkSolverSize() )
-			resizeSolver();
+		if(! checkSolverSize(!wqIsIdentity) )
+			resizeSolver(!wqIsIdentity);
 
 		using namespace soth;
 		double damping = 1e-2;
@@ -228,9 +240,9 @@ namespace iTaSC {
 			// compute the jacobian.
 			MatrixXd & Ctask = Ctasks[i];
 			if (!wyIsIdentity)
-				Ctask = priorities[i]->Ly * priorities[i]->A_priority * kernQ;
+				Ctask = priorities[i]->Ly * priorities[i]->A_priority;
 			else
-				Ctask = priorities[i]->A_priority * kernQ;
+				Ctask = priorities[i]->A_priority;
 
 
 			// Fill the solver: the reference.
@@ -238,7 +250,6 @@ namespace iTaSC {
 			const unsigned nx1 = priorities[i]->ydot_priority.size();
 
 			Eigen::VectorXd wy_ydot_lb;
-
 			if(!wyIsIdentity)
 				wy_ydot_lb = priorities[i]->Ly * priorities[i]->ydot_priority;
 			else
@@ -304,6 +315,22 @@ namespace iTaSC {
 			}
 		}
 
+		// If Wq.is not the Id matrix, add a final level to the stack
+		if( !wqIsIdentity )
+		{
+			LLT<MatrixXd> llwq(Wq);    // compute the Cholesky decomposition of A
+			Lq = llwq.matrixL();       // retrieve factor L in the decomposition
+
+			MatrixXd & Ctask = Ctasks[priorityNo];
+			Ctask = Lq;
+
+			// Fill the solver: the reference.
+			VectorBound & btask = btasks[priorityNo];
+			for( unsigned c=0;c<nq;++c )
+				btask[c] = 0;
+		}
+
+
 		// compute the solution
 		hsolver->reset();
 		hsolver->setInitialActiveSet();
@@ -335,11 +362,12 @@ namespace iTaSC {
 	/** Knowing the sizes of all the stages (except the task ones),
 	 * the function resizes the matrix and vector of all stages
 	 */
-	void HQPSolver::resizeSolver( )
+	void HQPSolver::resizeSolver(bool wqProvided)
 	{
-		hsolver = hcod_ptr_t(new soth::HCOD( nq, priorityNo ));
-		Ctasks.resize(priorityNo);
-		btasks.resize(priorityNo);
+		unsigned hsolverSize = (wqProvided) ? priorityNo+1 : priorityNo;
+		hsolver = hcod_ptr_t(new soth::HCOD( nq, hsolverSize ));
+		Ctasks.resize(hsolverSize);
+		btasks.resize(hsolverSize);
 
 		for(unsigned i=0; i<priorityNo;++i)
 		{
@@ -356,6 +384,19 @@ namespace iTaSC {
 			ssName << "nc_" << i+1;
 			ssName >> externalName;
 
+			hsolver->stages.back()->name = externalName;
+		}
+
+		// Fill the lazst stage with a minimization problem for the weight of q
+		if(wqProvided)
+		{
+			Ctasks[priorityNo].resize(nq,nq);
+			btasks[priorityNo].resize(nq);
+			hsolver->pushBackStage( Ctasks[priorityNo],btasks[priorityNo] );
+
+			ssName.clear();
+			ssName << "nc_" << priorityNo+1;
+			ssName >> externalName;
 			hsolver->stages.back()->name = externalName;
 		}
 

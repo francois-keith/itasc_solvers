@@ -27,8 +27,8 @@ public:
 	virtual void cleanupHook();
 	virtual bool solve();
 
-	void resizeSolver( );
-	bool checkSolverSize( );
+	void resizeSolver( bool has_wq );
+	bool checkSolverSize( bool has_wq );
 
 private:
 	// the solver
@@ -67,8 +67,9 @@ private:
 	// Memory allocation matrix concerning the decomposition of Wq
 	//  Wq corresponds to the weighting of the joint contribution
 	Eigen::MatrixXd Lq;     //
-	Eigen::MatrixXd invLq;  // inverse of Lq
-	Eigen::MatrixXd kernQ;
+
+	RTT::InputPort<Eigen::VectorXd> Wq_diag_port;
+	Eigen::VectorXd Wq_diag;
 
 	//std::vector priorities contains structs of the "Priority" type
 	struct Priority
