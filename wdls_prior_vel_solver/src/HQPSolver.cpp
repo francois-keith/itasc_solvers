@@ -354,16 +354,7 @@ namespace iTaSC {
 		hsolver->setInitialActiveSet();
 		hsolver->activeSearch(solution);
 
-		// TODO: handle the free floating base properly.
-		bool controlFreeFloating = true;
-		if( controlFreeFloating )
-		{
-			qdot=solution;
-		}
-		else
-		{
-			qdot=solution.tail( nq-6 );
-		}
+		qdot=solution;
 
 		// Publish the result.
 		qdot_port.write(qdot);
