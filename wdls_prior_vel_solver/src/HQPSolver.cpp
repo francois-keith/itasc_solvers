@@ -115,6 +115,12 @@ namespace iTaSC {
 			ssName << "inequalities_" << i+1;
 			ssName >> externalName;
 			this->ports()->addPort(externalName, priorities[i]->inequalities_port).doc("Inequality flag: which tasks are the inequalities?");
+
+
+			ssName.clear();
+			ssName << "Wy_diag_" << i+1;
+			ssName >> externalName;
+			this->ports()->addPort(externalName, priorities[i]->Wy_diag_port).doc("Output weight diagonal matrix with priority of the index");
 		}
 
 		return true;
@@ -202,19 +208,31 @@ namespace iTaSC {
 			hsolver->useDamp( false );
 		}
 
+
 		//priority loop: for each task group
 		for (unsigned int i=0;i<priorityNo;i++)
 		{
 			bool wyIsIdentity = true;
 
-			if(priorities[i]->Wy_port.read(priorities[i]->Wy_priority) != RTT::NoData
-				 && priorities[i]->Wy_priority.isIdentity() == false)
+			// Checking whether Wy or Wy_diag is provided
+			if(priorities[i]->Wy_port.read(priorities[i]->Wy_priority) != RTT::NoData)
 			{
-				wyIsIdentity = false;
-				// log(Error) << "Wy should be the identity matrix." << endlog();
-				Eigen::LLT<Eigen::MatrixXd> llwy(priorities[i]->Wy_priority); // compute the Cholesky decomposition of A
-				priorities[i]->Ly = llwy.matrixL();             // retrieve factor L in the decomposition
+				wyIsIdentity = (priorities[i]->Wy_priority.isIdentity());
 			}
+			else if(priorities[i]->Wy_diag_port.read(priorities[i]->Wy_diag) != RTT::NoData)
+			{
+				priorities[i]->Wy_priority = Eigen::MatrixXd::Zero(priorities[i]->nc_priority, priorities[i]->nc_priority);
+				for (unsigned j=0; j<priorities[i]->nc_priority ; ++j)
+					priorities[i]->Wy_priority(j,j) = priorities[i]->Wy_diag[j];
+
+				wyIsIdentity = (priorities[i]->Wy_priority.isIdentity());
+			}
+
+			if( wyIsIdentity == false )
+			{
+				 Eigen::LLT<Eigen::MatrixXd> llwy(priorities[i]->Wy_priority); // compute the Cholesky decomposition of A
+				 priorities[i]->Ly = llwy.matrixL();             // retrieve factor L in the decomposition
+			 }
 
 			// Check the size of the inequalities vector.
 			if(priorities[i]->inequalities_port.read(priorities[i]->inequalities) == RTT::NoData)

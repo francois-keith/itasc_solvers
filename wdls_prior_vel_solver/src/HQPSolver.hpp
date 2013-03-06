@@ -121,6 +121,10 @@ private:
 
 		// Memory allocation matrix concerning the decomposition of Wy
 		Eigen::MatrixXd Ly;     //
+
+		// Wy can be written as a diagonal matrix.
+		RTT::InputPort<Eigen::VectorXd> Wy_diag_port;
+		Eigen::VectorXd Wy_diag;
 	};
 
 	std::vector<Priority*> priorities;
